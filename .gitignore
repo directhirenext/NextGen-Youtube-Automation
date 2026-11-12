@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment & Secrets (Zero-Leak Policy)
+.env
+config/credentials.json
+config/token.json
+*.pem
+*.key
+
+# Local Database & State Vaults
+database/*.sqlite
+database/*.db
+database/vault.json
+
+# Media & Temp Renders (Claude-Style Video Editor Outputs)
+editor/renders/
+editor/temp/
+*.mp4
+*.mp3
+*.wav
+
+# Logs
+logs/
+*.log
+.DS_Store
