@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NextGen YouTube Automation v2.0 — Autonomous Studio</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo-dot"></span>
+      <div>
+        <h1>NextGen YouTube Automation <span class="badge">v2.0</span></h1>
+        <p>Multi-Agent Engine • Browser MCP Hub • Claude-Style Code Video Editor</p>
+      </div>
+    </div>
+    <div class="status-pills">
+      <span id="aiStatusPill" class="pill">AI: Checking...</span>
+      <span id="ytStatusPill" class="pill">YouTube OAuth: Checking...</span>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="metrics-grid">
+      <div class="card metric-card">
+        <span>Total Video Jobs</span>
+        <strong id="metricVideos">0</strong>
+      </div>
+      <div class="card metric-card">
+        <span>Connected MCP Skills</span>
+        <strong id="metricSkills">0</strong>
+      </div>
+      <div class="card metric-card">
+        <span>Compiled EDL Projects</span>
+        <strong id="metricEdls">0</strong>
+      </div>
+      <div class="card metric-card">
+        <span>System Health</span>
+        <strong id="metricHealth">100%</strong>
+      </div>
+    </section>
+
+    <div class="main-grid">
+      <!-- 1. Autonomous Production Pipeline -->
+      <section class="card">
+        <h2>🚀 1-Click Autonomous Video Production</h2>
+        <p class="muted">Runs Strategy, Scriptwriter, SEO, Thumbnail & Code Video Editor automatically.</p>
+        <form id="productionForm" class="form-stack">
+          <label>Target Niche
+            <input type="text" id="nicheInput" value="Pan-India Direct Hiring & Tech Jobs" required />
+          </label>
+          <label>Video Topic / Job Update Hint
+            <input type="text" id="topicInput" placeholder="e.g., Top 5 Remote & Walk-In Jobs This Week" required />
+          </label>
+          <div class="row">
+            <label>Aspect Ratio
+              <select id="aspectInput">
+                <option value="16:9">16:9 (Long-Form YouTube)</option>
+                <option value="9:16">9:16 (YouTube Shorts)</option>
+              </select>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="autoShortInput" checked />
+              Auto-Generate 9:16 Short
+            </label>
+          </div>
+          <button type="submit" class="btn primary" id="runPipelineBtn">⚡ Launch Autonomous Pipeline</button>
+        </form>
+      </section>
+
+      <!-- 2. Browser MCP Skill Connector -->
+      <section class="card">
+        <h2>🔌 Browser MCP Skill Hub</h2>
+        <p class="muted">Connect external or internal Model Context Protocol skills directly from your browser.</p>
+        <form id="mcpForm" class="form-stack">
+          <div class="row">
+            <input type="text" id="mcpId" placeholder="Skill ID (e.g. mcp-capcut-bridge)" required />
+            <input type="text" id="mcpName" placeholder="Skill Name" required />
+          </div>
+          <div class="row">
+            <select id="mcpType">
+              <option value="video-editor">Video Editor Skill</option>
+              <option value="seo">SEO & Trend Skill</option>
+              <option value="voiceover">AI Voiceover Skill</option>
+              <option value="thumbnail">Thumbnail Generator</option>
+              <option value="custom">Custom MCP Server</option>
+            </select>
+            <input type="text" id="mcpEndpoint" placeholder="https://your-mcp.server/rpc or internal://..." required />
+          </div>
+          <button type="submit" class="btn secondary">➕ Connect MCP Skill</button>
+        </form>
+        <div id="mcpSkillsList" class="list-box"></div>
+      </section>
+    </div>
+
+    <!-- 3. Claude-Style Code-Driven Video Editor -->
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <h2>🎬 Claude-Style Code-Driven Video Editor (EDL Studio)</h2>
+          <p class="muted">Edit videos via clean declarative JSON code—stitch scenes, set exact timestamps, colors & captions without timeline lag.</p>
+        </div>
+        <button id="loadSampleEdlBtn" class="btn outline">Load Sample EDL Code</button>
+      </div>
+      <div class="editor-grid">
+        <div>
+          <textarea id="edlCodeTextarea" rows="12" spellcheck="false"></textarea>
+          <button id="compileEdlBtn" class="btn primary full-width">🛠️ Compile EDL & Generate FFmpeg Render</button>
+        </div>
+        <div class="preview-pane">
+          <h3>Compiled FFmpeg Pipeline & Scene Preview</h3>
+          <pre id="ffmpegOutputBox" class="code-box">Click "Compile EDL" to generate zero-bug FFmpeg render code...</pre>
+          <div id="sceneTimelinePreview" class="timeline-strip"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Recent Video Jobs & Live Logs -->
+    <div class="main-grid">
+      <section class="card">
+        <h2>📦 Produced Video Packages</h2>
+        <div id="videoJobsList" class="list-box"></div>
+      </section>
+
+      <section class="card">
+        <h2>📡 Real-Time Agent Telemetry Logs</h2>
+        <div id="liveLogsBox" class="logs-box"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="app.js" type="module"></script>
+  <script src="enhance.js" type="module"></script>
+</body>
+  </html>
+  
