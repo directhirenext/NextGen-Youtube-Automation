@@ -1,0 +1,33 @@
+{
+  "mcpVersion": "2026.1",
+  "serverName": "nextgen-youtube-mcp-hub",
+  "description": "Browser-connectable Model Context Protocol Hub for Autonomous YouTube Agents & Algorithmic Video Editing",
+  "tools": [
+    {
+      "name": "code_video_editor_compile",
+      "description": "Compiles a declarative Edit Decision List (EDL) JSON into an executable FFmpeg render pipeline.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "resolution": { "type": "string", "default": "1920x1080" },
+          "fps": { "type": "number", "default": 30 },
+          "timeline": { "type": "array" }
+        },
+        "required": ["title", "timeline"]
+      }
+    },
+    {
+      "name": "seo_metadata_optimizer",
+      "description": "Generates high-CTR titles, keyword-rich descriptions, and ranking tags.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "topic": { "type": "string" },
+          "targetAudience": { "type": "string" }
+        },
+        "required": ["topic"]
+      }
+    }
+  ]
+}
