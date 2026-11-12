@@ -1,0 +1,37 @@
+{
+  "name": "youtube-automation-agent-v2",
+  "version": "2.0.0",
+  "description": "10x Advanced Autonomous YouTube Channel Management System with MCP & Code-Driven Video Editor",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "setup": "node setup.js",
+    "schedule": "node schedules/daily-automation.js",
+    "test": "node test.js"
+  },
+  "keywords": [
+    "youtube-automation",
+    "ai-agents",
+    "mcp-server",
+    "code-driven-video-editor",
+    "autonomous-agents",
+    "ffmpeg"
+  ],
+  "author": "Mohd Arif",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "googleapis": "^140.0.1",
+    "helmet": "^7.1.0",
+    "node-cron": "^3.0.3",
+    "zod": "^3.23.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
