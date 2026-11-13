@@ -1,13 +1,13 @@
 import { spawn } from 'child_process';
-import fs from 'fs';
 import path from 'path';
 import { z } from 'zod';
 import { loadValidatedConfig, sanitizeShellArg } from '../config/security-validator.js';
+import { crossOS } from './cross-os-adapter.js';
 import { logger } from './logger.js';
 import { db } from '../database/db.js';
 
 const edlSceneSchema = z.object({
-  sceneId: z.string(),
+  sceneId: z.string().min(1).max(64),
   type: z.enum(['hook', 'intro', 'body', 'broll', 'cta']),
   durationSec: z.number().min(1).max(600),
   captionText: z.string().max(180),
@@ -20,19 +20,20 @@ const edlProjectSchema = z.object({
   title: z.string().min(2).max(120),
   aspectRatio: z.enum(['16:9', '9:16']).default('16:9'),
   fps: z.number().min(24).max(60).default(30),
-  scenes: z.array(edlSceneSchema).min(1)
+  scenes: z.array(edlSceneSchema).min(1).max(50)
 });
 
 export class CodeDrivenVideoEditor {
   constructor() {
     this.config = loadValidatedConfig();
     this.outputDir = path.resolve('editor/renders');
-    if (!fs.existsSync(this.outputDir)) {
-      fs.mkdirSync(this.outputDir, { recursive: true });
-    }
+    crossOS.ensureDirectories([this.outputDir, 'editor/temp']);
+    this.ffmpegResolution = crossOS.resolveFFmpegBinary(this.config.FFMPEG_PATH);
   }
 
   validateAndCompileEDL(rawEdl) {
+    crossOS.ensureDirectories([this.outputDir]);
+
     const parsed = edlProjectSchema.safeParse(rawEdl);
     if (!parsed.success) {
       throw new Error(`Invalid Video Editor Code (EDL): ${JSON.stringify(parsed.error.flatten().fieldErrors)}`);
@@ -51,7 +52,7 @@ export class CodeDrivenVideoEditor {
       const hexBg = scene.bgColor.replace('#', '0x');
       inputArgs.push('-f', 'lavfi', '-i', `color=c=${hexBg}:s=${resolution}:d=${scene.durationSec}:r=${edl.fps}`);
 
-      const cleanCaption = sanitizeShellArg(scene.captionText).replace(/:/g, '\\:').replace(/'/g, '');
+      const cleanCaption = sanitizeShellArg(scene.captionText);
       const hexText = scene.textColor.replace('#', '0x');
 
       filterComplexParts.push(
@@ -77,6 +78,7 @@ export class CodeDrivenVideoEditor {
       outputPath
     ];
 
+    const binPath = this.ffmpegResolution.binaryPath;
     const compiledProject = {
       title: edl.title,
       aspectRatio: edl.aspectRatio,
@@ -85,22 +87,57 @@ export class CodeDrivenVideoEditor {
       totalDurationSec: totalDuration,
       sceneCount: edl.scenes.length,
       outputFile: safeFilename,
-      ffmpegCommandPreview: `${this.config.FFMPEG_PATH} ${ffmpegArgs.join(' ')}`,
+      ffmpegBinary: binPath,
+      ffmpegAvailable: this.ffmpegResolution.available,
+      ffmpegCommandPreview: `${binPath} ${ffmpegArgs.join(' ')}`,
       edlCode: edl
     };
 
     const saved = db.saveEdlProject(compiledProject);
-    logger.success('CodeVideoEditor', `Compiled Claude-Style EDL for "${edl.title}" (${totalDuration}s, ${edl.scenes.length} scenes)`);
+    logger.success('CodeVideoEditor', `Compiled Claude-Style EDL for "${edl.title}" (${totalDuration}s)`);
     return { ...saved, ffmpegArgs, outputPath };
   }
 
   async executeRender(compiledEdl) {
+    crossOS.ensureDirectories([this.outputDir]);
+
+    if (!this.ffmpegResolution.available) {
+      logger.info('CodeVideoEditor', 'FFmpeg binary not installed on host; returning verified EDL dry-run artifact.');
+      return {
+        rendered: false,
+        mode: 'code-compiled-dry-run',
+        outputFile: compiledEdl.outputFile,
+        command: compiledEdl.ffmpegCommandPreview
+      };
+    }
+
     return new Promise((resolve) => {
-      const child = spawn(this.config.FFMPEG_PATH, compiledEdl.ffmpegArgs, { stdio: 'ignore' });
+      let settled = false;
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutHandle);
+        resolve(result);
+      };
+
+      const child = spawn(this.ffmpegResolution.binaryPath, compiledEdl.ffmpegArgs, {
+        stdio: 'ignore',
+        windowsHide: true
+      });
+
+      const timeoutHandle = setTimeout(() => {
+        logger.warn('CodeVideoEditor', `FFmpeg render exceeded ${this.config.FFMPEG_TIMEOUT_MS}ms timeout. Terminating process.`);
+        try { child.kill('SIGKILL'); } catch {}
+        finish({
+          rendered: false,
+          mode: 'timeout-guarded-fallback',
+          outputFile: compiledEdl.outputFile,
+          command: compiledEdl.ffmpegCommandPreview
+        });
+      }, this.config.FFMPEG_TIMEOUT_MS);
 
       child.on('error', () => {
-        logger.warn('CodeVideoEditor', 'FFmpeg binary not installed on host; returning verified EDL dry-run artifact.');
-        resolve({
+        finish({
           rendered: false,
           mode: 'code-compiled-dry-run',
           outputFile: compiledEdl.outputFile,
@@ -108,17 +145,17 @@ export class CodeDrivenVideoEditor {
         });
       });
 
-      child.on('close', (code) => {
+      child.on('exit', (code) => {
         if (code === 0) {
-          logger.success('CodeVideoEditor', `Successfully rendered MP4 video: ${compiledEdl.outputFile}`);
-          resolve({
+          logger.success('CodeVideoEditor', `Rendered MP4 video: ${compiledEdl.outputFile}`);
+          finish({
             rendered: true,
             mode: 'ffmpeg-hardware-render',
             outputFile: compiledEdl.outputFile,
             command: compiledEdl.ffmpegCommandPreview
           });
         } else {
-          resolve({
+          finish({
             rendered: false,
             mode: 'code-compiled-dry-run',
             outputFile: compiledEdl.outputFile,
@@ -131,4 +168,4 @@ export class CodeDrivenVideoEditor {
 }
 
 export const codeVideoEditor = new CodeDrivenVideoEditor();
-      
+            
