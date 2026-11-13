@@ -1,8 +1,10 @@
-const state = {
-  videos: [],
-  mcpSkills: [],
-  edlProjects: []
-};
+function escapeHtml(str) {
+  if (typeof str !== 'string') return String(str ?? '');
+  return str.replace(/[&<>"']/g, (char) => {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return map[char] || char;
+  });
+}
 
 async function apiCall(path, options = {}) {
   const res = await fetch(path, {
@@ -21,7 +23,8 @@ function renderMetrics(dbState, authStatus) {
   document.getElementById('metricHealth').textContent = `${dbState.channelMetrics?.healthScore || 100}%`;
 
   const aiPill = document.getElementById('aiStatusPill');
-  aiPill.textContent = `AI (${authStatus.aiProvider}): ${authStatus.hasAiKey ? 'Connected' : 'Fallback Mode'}`;
+  const osName = authStatus.osProfile?.osType || 'Host';
+  aiPill.textContent = `AI (${authStatus.aiProvider}): ${authStatus.hasAiKey ? 'Connected' : 'Fallback'} • ${osName}`;
 
   const ytPill = document.getElementById('ytStatusPill');
   ytPill.textContent = `YouTube OAuth: ${authStatus.isYouTubeAuthorized ? 'Authorized' : 'Local Queue Mode'}`;
@@ -32,16 +35,16 @@ function renderMcpSkills(skills = []) {
   box.innerHTML = skills.map(s => `
     <div class="item-row">
       <div>
-        <strong>${s.name}</strong> <span class="badge">${s.type}</span>
-        <div class="muted">${s.id} • ${s.endpoint}</div>
+        <strong>${escapeHtml(s.name)}</strong> <span class="badge">${escapeHtml(s.type)}</span>
+        <div class="muted">${escapeHtml(s.id)} • ${escapeHtml(s.endpoint)}</div>
       </div>
-      <button class="btn outline" data-disconnect="${s.id}">Disconnect</button>
+      <button class="btn outline" data-disconnect="${escapeHtml(s.id)}">Disconnect</button>
     </div>
   `).join('');
 
   box.querySelectorAll('[data-disconnect]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      await apiCall(`/api/mcp/skills/${btn.dataset.disconnect}`, { method: 'DELETE' });
+      await apiCall(`/api/mcp/skills/${encodeURIComponent(btn.dataset.disconnect)}`, { method: 'DELETE' });
       await refreshDashboard();
     });
   });
@@ -56,19 +59,31 @@ function renderVideoJobs(videos = []) {
   box.innerHTML = videos.map(v => `
     <div class="item-row">
       <div>
-        <strong>${v.title || v.topicHint || v.id}</strong>
-        <div class="muted">Status: ${v.status} • Scenes: ${v.edlProject?.sceneCount || 0} • Short: ${v.shortVariant ? 'Yes (9:16)' : 'No'}</div>
+        <strong>${escapeHtml(v.title || v.topicHint || v.id)}</strong>
+        <div class="muted">Status: ${escapeHtml(v.status)} • Scenes: ${Number(v.edlProject?.sceneCount || 0)} • Short: ${v.shortVariant ? 'Yes (9:16)' : 'No'}</div>
       </div>
-      <span class="badge">${v.seo?.seoScore || 95} SEO</span>
+      <span class="badge">${Number(v.seo?.seoScore || 95)} SEO</span>
     </div>
   `).join('');
 }
 
 function appendLogEntry(entry) {
   const box = document.getElementById('liveLogsBox');
+  if (!box) return;
   const div = document.createElement('div');
   div.className = 'item-row';
-  div.innerHTML = `<span><strong>[${entry.module}]</strong> ${entry.message}</span><span class="muted">${new Date(entry.timestamp).toLocaleTimeString()}</span>`;
+  const strong = document.createElement('strong');
+  strong.textContent = `[${entry.module}] `;
+  const msgSpan = document.createElement('span');
+  msgSpan.appendChild(strong);
+  msgSpan.appendChild(document.createTextNode(entry.message || ''));
+
+  const timeSpan = document.createElement('span');
+  timeSpan.className = 'muted';
+  timeSpan.textContent = new Date(entry.timestamp).toLocaleTimeString();
+
+  div.appendChild(msgSpan);
+  div.appendChild(timeSpan);
   box.prepend(div);
 }
 
@@ -131,11 +146,13 @@ document.getElementById('mcpForm')?.addEventListener('submit', async (e) => {
 function initLiveLogs() {
   const evtSource = new EventSource('/api/logs/stream');
   evtSource.onmessage = (event) => {
-    const entry = JSON.parse(event.data);
-    appendLogEntry(entry);
+    try {
+      const entry = JSON.parse(event.data);
+      appendLogEntry(entry);
+    } catch {}
   };
 }
 
 refreshDashboard();
 initLiveLogs();
-        
+
