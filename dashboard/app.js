@@ -1,3 +1,5 @@
+let currentPasskey = localStorage.getItem('nextgen_passkey') || '';
+
 function escapeHtml(str) {
   if (typeof str !== 'string') return String(str ?? '');
   return str.replace(/[&<>"']/g, (char) => {
@@ -7,16 +9,37 @@ function escapeHtml(str) {
 }
 
 export async function apiCall(path, options = {}) {
-  const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options
-  });
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(currentPasskey ? { 'x-dashboard-key': currentPasskey } : {}),
+    ...(options.headers || {})
+  };
+
+  const res = await fetch(path, { ...options, headers });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
 }
 
+document.getElementById('savePasskeyBtn')?.addEventListener('click', () => {
+  const val = document.getElementById('passkeyInput')?.value?.trim() || '';
+  if (!val) {
+    alert('Please enter a valid passkey.');
+    return;
+  }
+  currentPasskey = val;
+  localStorage.setItem('nextgen_passkey', val);
+  refreshDashboard();
+  alert('🔐 Passkey saved and studio unlocked!');
+});
+
 function renderMetrics(dbState, authStatus, aiGateway, mediaAssets) {
+  const authPill = document.getElementById('authStatusPill');
+  if (authPill) {
+    authPill.textContent = currentPasskey ? 'Unlocked (Key Active)' : 'Locked (Enter Passkey)';
+    authPill.className = currentPasskey ? 'pill' : 'pill warning';
+  }
+
   const totalAssets =
     (mediaAssets?.videos?.length || 0) +
     (mediaAssets?.audio?.length || 0) +
@@ -39,7 +62,7 @@ function renderMetrics(dbState, authStatus, aiGateway, mediaAssets) {
   }
 
   const ytPill = document.getElementById('ytStatusPill');
-  ytPill.textContent = `YouTube OAuth: ${authStatus.isYouTubeAuthorized ? 'Authorized' : 'Local Queue Mode'}`;
+  ytPill.textContent = `YouTube: ${authStatus.isYouTubeAuthorized ? 'Authorized' : 'Queue Mode'}`;
 }
 
 function populateMediaDropdowns(mediaAssets = {}) {
@@ -115,7 +138,7 @@ function renderMcpSkills(skills = []) {
         <strong>${escapeHtml(s.name)}</strong> <span class="badge">${escapeHtml(s.type)}</span>
         <div class="muted">${escapeHtml(s.id)} • ${escapeHtml(s.endpoint)}</div>
       </div>
-      <button class="btn outline" data-disconnect="${escapeHtml(s.id)}">Disconnect</button>
+      ${!s.builtIn ? `<button class="btn outline" data-disconnect="${escapeHtml(s.id)}">Disconnect</button>` : '<span class="badge">Built-in</span>'}
     </div>
   `).join('');
 
@@ -134,19 +157,93 @@ function renderVideoJobs(videos = []) {
     box.innerHTML = '<div class="muted">No video packages produced yet. Launch the pipeline above!</div>';
     return;
   }
+
   box.innerHTML = videos.map(v => {
+    const isRendered = Boolean(v.renderResult?.rendered && v.edlProject?.outputFile);
+    const videoUrl = isRendered ? `/renders/${encodeURIComponent(v.edlProject.outputFile)}` : '';
+    const srtUrl = v.edlProject?.srtFile ? `/renders/subtitles/${encodeURIComponent(v.edlProject.srtFile)}` : '';
     const abWinner = v.seo?.abTesting?.winner || 'Variant A';
-    const srtFile = v.edlProject?.srtFile || v.seo?.srtSubtitleFile || 'Ready';
+    const seoScore = Number(v.seo?.seoScore || 95);
+
     return `
-      <div class="item-row">
-        <div>
-          <strong>${escapeHtml(v.title || v.topicHint || v.id)}</strong>
-          <div class="muted">Status: ${escapeHtml(v.status)} • Scenes: ${Number(v.edlProject?.sceneCount || 0)} • A/B Winner: ${escapeHtml(abWinner)} • SRT: ${escapeHtml(srtFile)}</div>
+      <div class="video-job-box" data-job-id="${escapeHtml(v.id)}">
+        <div class="item-row" style="background:transparent; border:none; padding:0;">
+          <div>
+            <strong>${escapeHtml(v.title || v.topicHint || v.id)}</strong>
+            <div class="muted">Status: <span class="badge">${escapeHtml(v.status)}</span> • SEO: ${seoScore}/100 • A/B Winner: ${escapeHtml(abWinner)}</div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            ${isRendered ? `<a href="${videoUrl}" download class="btn outline">📥 Download MP4</a>` : ''}
+            ${srtUrl ? `<a href="${srtUrl}" download class="btn outline">📝 Download SRT</a>` : ''}
+            <button class="btn primary" data-publish-id="${escapeHtml(v.id)}">🚀 Publish to YouTube</button>
+          </div>
         </div>
-        <span class="badge">${Number(v.seo?.seoScore || 98)} SEO</span>
+
+        ${isRendered ? `
+          <div class="video-preview-wrapper">
+            <video controls preload="metadata" src="${videoUrl}"></video>
+          </div>
+        ` : `<div class="muted">Video render pending or FFmpeg missing (${escapeHtml(v.renderResult?.mode || 'dry-run')})</div>`}
+
+        <details>
+          <summary style="cursor:pointer; font-size:0.825rem; font-weight:600; color:var(--accent-primary);">🛠️ AI Revision & Manual Edit Studio (Click to Expand)</summary>
+          <div class="form-stack" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border-color);">
+            <label>AI Revision Feedback Prompt (Tell AI what to fix or change)
+              <input type="text" class="rev-feedback" placeholder="e.g., Make the hook punchier, update tone, or fix scene 2" />
+            </label>
+            <div class="row">
+              <label>Manual Title Override
+                <input type="text" class="rev-title" value="${escapeHtml(v.seo?.optimizedTitle || v.title || '')}" />
+              </label>
+              <button class="btn secondary rev-submit-btn" data-revise-id="${escapeHtml(v.id)}" style="align-self:flex-end;">🔄 Revise & Re-Render</button>
+            </div>
+          </div>
+        </details>
       </div>
     `;
   }).join('');
+
+  // Attach event listeners for publish and revise
+  box.querySelectorAll('[data-publish-id]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const jobId = btn.dataset.publishId;
+      btn.disabled = true;
+      btn.textContent = '🚀 Publishing to YouTube...';
+      try {
+        const res = await apiCall(`/api/publish/${encodeURIComponent(jobId)}`, { method: 'POST' });
+        alert(`✅ Successfully published to YouTube! Video ID: ${res.job.youtubeVideoId}`);
+        await refreshDashboard();
+      } catch (err) {
+        alert(`Publish error: ${err.message}`);
+        btn.disabled = false;
+        btn.textContent = '🚀 Publish to YouTube';
+      }
+    });
+  });
+
+  box.querySelectorAll('.rev-submit-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const jobId = btn.dataset.reviseId;
+      const boxEl = btn.closest('.video-job-box');
+      const feedbackPrompt = boxEl.querySelector('.rev-feedback')?.value || '';
+      const manualTitle = boxEl.querySelector('.rev-title')?.value || '';
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Re-rendering...';
+      try {
+        await apiCall('/api/production/revise', {
+          method: 'POST',
+          body: JSON.stringify({ jobId, feedbackPrompt, manualTitle, regenerateTarget: 'all' })
+        });
+        await refreshDashboard();
+        alert('✅ Video successfully revised and re-rendered with new audio/visuals!');
+      } catch (err) {
+        alert(`Revision error: ${err.message}`);
+        btn.disabled = false;
+        btn.textContent = '🔄 Revise & Re-Render';
+      }
+    });
+  });
 }
 
 function appendLogEntry(entry) {
@@ -185,7 +282,7 @@ document.getElementById('productionForm')?.addEventListener('submit', async (e) 
   e.preventDefault();
   const btn = document.getElementById('runPipelineBtn');
   btn.disabled = true;
-  btn.textContent = '⏳ Running Enterprise Pipeline...';
+  btn.textContent = '⏳ Running Multi-Agent Pipeline...';
   try {
     await apiCall('/api/production/run', {
       method: 'POST',
@@ -198,6 +295,7 @@ document.getElementById('productionForm')?.addEventListener('submit', async (e) 
     });
     document.getElementById('topicInput').value = '';
     await refreshDashboard();
+    alert('✅ Autonomous pipeline finished successfully!');
   } catch (err) {
     alert(`Pipeline error: ${err.message}`);
   } finally {
@@ -220,7 +318,7 @@ document.getElementById('universalAiForm')?.addEventListener('submit', async (e)
     });
     document.getElementById('aiApiKeyInput').value = '';
     await refreshDashboard();
-    alert('✅ Universal AI Provider configured and active!');
+    alert('✅ Universal AI Provider configured successfully!');
   } catch (err) {
     alert(`AI Config Error: ${err.message}`);
   }
@@ -231,7 +329,7 @@ document.getElementById('uploadMediaBtn')?.addEventListener('click', async () =>
   const category = document.getElementById('uploadCategorySelect').value;
   const file = fileInput?.files?.[0];
   if (!file) {
-    alert('Please select a video, audio, or overlay file first.');
+    alert('Please select a file first.');
     return;
   }
 
@@ -248,6 +346,7 @@ document.getElementById('uploadMediaBtn')?.addEventListener('click', async () =>
       });
       fileInput.value = '';
       await refreshDashboard();
+      alert('✅ File uploaded successfully to studio vault!');
     } catch (err) {
       alert(`Upload failed: ${err.message}`);
     }
@@ -285,6 +384,8 @@ function initLiveLogs() {
   };
 }
 
-refreshDashboard();
-initLiveLogs();
-  
+if (currentPasskey) {
+  refreshDashboard();
+  initLiveLogs();
+          }
+          
