@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,17 +12,28 @@
       <span class="logo-dot"></span>
       <div>
         <h1>NextGen YouTube Automation <span class="badge">v3.0 Enterprise</span></h1>
-        <p>Multi-Agent Engine • Universal AI Router • KineMaster-Style Manual & Code Video Studio</p>
+        <p>Multi-Agent Engine • Universal AI Router • Interactive Revision Studio • Real FFmpeg Engine</p>
       </div>
     </div>
     <div class="status-pills">
+      <span id="authStatusPill" class="pill warning">Locked</span>
       <span id="aiStatusPill" class="pill">AI: Checking...</span>
       <span id="tokenStatusPill" class="pill">Tokens: 0</span>
-      <span id="ytStatusPill" class="pill">YouTube OAuth: Checking...</span>
+      <span id="ytStatusPill" class="pill">YouTube: Checking...</span>
     </div>
   </header>
 
   <main class="container">
+    <!-- Security Passkey Bar -->
+    <section class="card auth-card" id="authSection">
+      <h3>🔐 Dashboard Passkey Authentication</h3>
+      <p class="muted">Enter your DASHBOARD_SECRET_KEY (or generated dev token) to unlock studio operations.</p>
+      <div class="row">
+        <input type="password" id="passkeyInput" placeholder="Enter DASHBOARD_SECRET_KEY here..." />
+        <button type="button" id="savePasskeyBtn" class="btn primary">Unlock Studio</button>
+      </div>
+    </section>
+
     <section class="metrics-grid">
       <div class="card metric-card">
         <span>Total Video Jobs</span>
@@ -50,10 +61,10 @@
       <!-- 1. Autonomous Production Pipeline -->
       <section class="card">
         <h2>🚀 1-Click Autonomous Video Production</h2>
-        <p class="muted">Runs Strategy, Scriptwriter, Enterprise SEO (Chapters + A/B Test), Thumbnail & Studio Video Render.</p>
+        <p class="muted">Runs Strategy, Scriptwriter, Neural TTS Voiceover, Real FFmpeg MP4 Render, SEO Chapters & PNG Thumbnail.</p>
         <form id="productionForm" class="form-stack">
           <label>Target Niche
-            <input type="text" id="nicheInput" value="Pan-India Direct Hiring & Tech Jobs" required />
+            <input type="text" id="nicheInput" value="Pan-India Direct Hiring & Career Updates" required />
           </label>
           <label>Video Topic / Job Update Hint
             <input type="text" id="topicInput" placeholder="e.g., Top 5 Remote & Walk-In Jobs This Week" required />
@@ -98,10 +109,10 @@
             </label>
           </div>
           <div class="row">
-            <label>Custom Base URL (Optional for Custom/Proxy)
+            <label>Custom Base URL (Optional)
               <input type="text" id="aiBaseUrlInput" placeholder="https://openrouter.ai/api/v1/chat/completions" />
             </label>
-            <label>API Key (Runtime Override)
+            <label>API Key (Runtime Scoped)
               <input type="password" id="aiApiKeyInput" placeholder="Paste API Key to activate immediately" />
             </label>
           </div>
@@ -110,18 +121,17 @@
       </section>
     </div>
 
-    <!-- 3. KineMaster / PowerDirector Style Local Media Upload & Manual Multi-Track Studio -->
+    <!-- 3. Advanced Manual Media & Layering Studio -->
     <section class="card">
       <div class="section-head">
         <div>
-          <h2>🎛️ KineMaster / PowerDirector Manual Media & Layering Studio</h2>
-          <p class="muted">Upload raw video, voiceover, BGM, or green-screen overlays. Mute original video audio, remove background noise, auto-duck BGM, and apply studio filters.</p>
+          <h2>🎛️ Advanced Manual Media & Multi-Track Studio</h2>
+          <p class="muted">Upload raw video, voiceover, BGM, or overlays. Mute original audio, remove background noise, auto-duck BGM, and apply studio filters.</p>
         </div>
         <button id="syncStudioToEdlBtn" class="btn outline">🔗 Sync Manual Controls to EDL Code Below</button>
       </div>
 
       <div class="main-grid">
-        <!-- Upload Box -->
         <div class="form-stack">
           <h3>📤 1. Upload Media File (Video / Voiceover / BGM / Overlay)</h3>
           <div class="row">
@@ -129,7 +139,7 @@
               <select id="uploadCategorySelect">
                 <option value="video">Raw Video (.mp4, .webm, .mov)</option>
                 <option value="audio">Voiceover / BGM Audio (.mp3, .wav, .m4a)</option>
-                <option value="overlay">PiP / Green Screen / Logo (.png, .jpg, .mp4)</option>
+                <option value="overlay">PiP / Watermark / Logo (.png, .jpg, .mp4)</option>
               </select>
             </label>
             <label>Select File from Device
@@ -140,7 +150,6 @@
           <div id="uploadedMediaList" class="list-box"></div>
         </div>
 
-        <!-- Manual Mixing & Filter Controls -->
         <div class="form-stack">
           <h3>🎚️ 2. Multi-Track Audio, De-Noise & Visual Filter Controls</h3>
           <div class="row">
@@ -173,7 +182,7 @@
           <div class="row">
             <label class="checkbox-label">
               <input type="checkbox" id="autoDuckToggle" checked />
-              📉 Auto-Duck BGM When Speaking
+              📉 Sidechain Auto-Duck BGM
             </label>
             <label class="checkbox-label">
               <input type="checkbox" id="removeSilenceToggle" />
@@ -236,7 +245,7 @@
       <div class="section-head">
         <div>
           <h2>🎬 Claude-Style Code-Driven Video Editor (EDL Studio + Manual Layer Compiler)</h2>
-          <p class="muted">Edit scenes, captions, and manual studio parameters in declarative JSON or sync directly from the KineMaster controls above.</p>
+          <p class="muted">Edit scenes, captions, and manual studio parameters in declarative JSON or sync directly from the manual controls above.</p>
         </div>
         <button id="loadSampleEdlBtn" class="btn outline">Load Sample EDL Code</button>
       </div>
@@ -253,13 +262,20 @@
       </div>
     </section>
 
-    <!-- 5. Browser MCP Hub, Produced Videos & Live Logs -->
+    <!-- 5. Produced Videos, AI Revision Studio & YouTube Publishing -->
+    <section class="card">
+      <h2>📦 Produced Video Jobs, AI Revision Studio & YouTube Publishing</h2>
+      <p class="muted">View generated MP4 videos, inspect SRT subtitles & YouTube Chapters, review A/B CTR winners, or use AI Feedback to revise and re-render instantly.</p>
+      <div id="videoJobsList" class="list-box"></div>
+    </section>
+
+    <!-- 6. Browser MCP Skill Hub & Live Logs -->
     <div class="main-grid">
       <section class="card">
         <h2>🔌 Browser MCP Skill Hub</h2>
         <form id="mcpForm" class="form-stack">
           <div class="row">
-            <input type="text" id="mcpId" placeholder="Skill ID (e.g. mcp-capcut-bridge)" required />
+            <input type="text" id="mcpId" placeholder="Skill ID (e.g. mcp-custom-bridge)" required />
             <input type="text" id="mcpName" placeholder="Skill Name" required />
           </div>
           <div class="row">
@@ -278,19 +294,13 @@
       </section>
 
       <section class="card">
-        <h2>📦 Produced Video Packages & A/B CTR Winners</h2>
-        <div id="videoJobsList" class="list-box"></div>
+        <h2>📡 Real-Time Agent & Studio Telemetry Logs</h2>
+        <div id="liveLogsBox" class="logs-box"></div>
       </section>
     </div>
-
-    <section class="card">
-      <h2>📡 Real-Time Agent & Studio Telemetry Logs</h2>
-      <div id="liveLogsBox" class="logs-box"></div>
-    </section>
   </main>
 
   <script src="app.js" type="module"></script>
   <script src="enhance.js" type="module"></script>
 </body>
-  </html>
-                                                                                     
+</html>
