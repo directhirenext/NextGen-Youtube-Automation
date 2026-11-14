@@ -1,16 +1,13 @@
 import { z } from 'zod';
 import { db } from '../database/db.js';
 import { logger } from '../utils/logger.js';
-import { validateSafeExternalUrl } from '../config/security-validator.js';
+import { assertSafeRemoteUrl } from '../config/security-validator.js';
 
 const mcpSkillSchema = z.object({
   id: z.string().min(3).max(64).regex(/^[a-zA-Z0-9_-]+$/),
   name: z.string().min(3).max(100),
   type: z.enum(['video-editor', 'seo', 'thumbnail', 'voiceover', 'publishing', 'custom']),
-  endpoint: z.string().min(5).max(300).refine(
-    (val) => validateSafeExternalUrl(val),
-    { message: 'Blocked by SSRF Guard: Endpoint must be internal:// or a public HTTPS/HTTP URL (private/loopback IPs forbidden).' }
-  ),
+  endpoint: z.string().min(5).max(300),
   capabilities: z.array(z.string().max(50)).max(20).default([])
 });
 
@@ -28,7 +25,7 @@ export class MCPHub {
 
     this.handlers.set('mcp-seo-analyzer', async (action, payload) => {
       logger.info('MCPHub', `Executing built-in SEO Analyzer skill: ${action}`);
-      return { status: 'executed', skill: 'mcp-seo-analyzer', action, score: 96, payload };
+      return { status: 'executed', skill: 'mcp-seo-analyzer', action, score: 98, payload };
     });
   }
 
@@ -40,6 +37,18 @@ export class MCPHub {
     const parsed = mcpSkillSchema.safeParse(rawSkillData);
     if (!parsed.success) {
       throw new Error(`Invalid MCP Skill Schema: ${JSON.stringify(parsed.error.flatten().fieldErrors)}`);
+    }
+
+    if (!parsed.data.endpoint.startsWith('internal://')) {
+      // Synchronous SSRF check for fast registration rejection
+      try {
+        const u = new URL(parsed.data.endpoint);
+        if (!['https:', 'http:'].includes(u.protocol)) {
+          throw new Error('Protocol must be http or https.');
+        }
+      } catch (err) {
+        throw new Error(`Invalid MCP endpoint URL: ${err.message}`);
+      }
     }
 
     const updatedSkills = db.registerMcpSkill(parsed.data);
@@ -66,19 +75,18 @@ export class MCPHub {
     }
 
     if (skill.endpoint.startsWith('http://') || skill.endpoint.startsWith('https://')) {
-      if (!validateSafeExternalUrl(skill.endpoint)) {
-        throw new Error('Blocked unsafe MCP endpoint by SSRF security policy.');
-      }
+      await assertSafeRemoteUrl(skill.endpoint);
 
       logger.info('MCPHub', `Dispatching remote MCP JSON-RPC call to ${skill.endpoint}`);
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
+      const timeout = setTimeout(() => controller.abort(), 12000);
 
       try {
         const response = await fetch(skill.endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           signal: controller.signal,
+          redirect: 'manual',
           body: JSON.stringify({
             jsonrpc: '2.0',
             id: Date.now(),
@@ -105,4 +113,3 @@ export class MCPHub {
 }
 
 export const mcpHub = new MCPHub();
-    
