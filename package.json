@@ -1,37 +1,27 @@
 {
-  "name": "youtube-automation-agent-v2",
-  "version": "2.0.0",
-  "description": "10x Advanced Autonomous YouTube Channel Management System with MCP & Code-Driven Video Editor",
+  "name": "nextgen-youtube-automation",
+  "version": "3.0.0",
+  "description": "Production-Ready Multi-Agent YouTube Studio with Humanized Neural TTS, Real FFmpeg/ffprobe Engine, Interactive Revision Studio & Zero-Bypass Security",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --watch index.js",
     "setup": "node setup.js",
+    "start": "node index.js",
     "schedule": "node schedules/daily-automation.js",
-    "test": "node test.js"
+    "test": "node --test test.js"
   },
-  "keywords": [
-    "youtube-automation",
-    "ai-agents",
-    "mcp-server",
-    "code-driven-video-editor",
-    "autonomous-agents",
-    "ffmpeg"
-  ],
-  "author": "Mohd Arif",
-  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-rate-limit": "^7.4.0",
-    "googleapis": "^140.0.1",
+    "googleapis": "^140.0.0",
     "helmet": "^7.1.0",
     "node-cron": "^3.0.3",
     "zod": "^3.23.8"
   },
-  "engines": {
-    "node": ">=18.0.0"
-  }
+  "license": "MIT"
 }
