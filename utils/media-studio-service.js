@@ -1,14 +1,18 @@
 import fs from 'fs';
 import path from 'path';
-import { loadValidatedConfig, sanitizeSafeFilename, validateSafeExternalUrl } from '../config/security-validator.js';
+import {
+  loadValidatedConfig,
+  sanitizeSafeFilename,
+  assertSafeRemoteUrl
+} from '../config/security-validator.js';
 import { crossOS } from './cross-os-adapter.js';
 import { logger } from './logger.js';
 
 const MEDIA_DIRS = {
-  video: path.resolve('editor/uploads/videos'),
-  audio: path.resolve('editor/uploads/audio'),
-  overlay: path.resolve('editor/uploads/overlays'),
-  subtitles: path.resolve('editor/renders/subtitles')
+  video: crossOS.resolveProjectPath('editor', 'uploads', 'videos'),
+  audio: crossOS.resolveProjectPath('editor', 'uploads', 'audio'),
+  overlay: crossOS.resolveProjectPath('editor', 'uploads', 'overlays'),
+  subtitles: crossOS.resolveProjectPath('editor', 'renders', 'subtitles')
 };
 
 const ALLOWED_EXTENSIONS = {
@@ -23,8 +27,41 @@ export class MediaStudioService {
     crossOS.ensureDirectories(Object.values(MEDIA_DIRS));
   }
 
-  saveUploadedMedia({ category = 'video', originalName, base64Data }) {
-    if (!MEDIA_DIRS[category]) {
+  _verifyMagicBytes(buffer, ext) {
+    if (!Buffer.isBuffer(buffer) || buffer.length < 12) return false;
+    const hex4 = buffer.subarray(0, 4).toString('hex').toLowerCase();
+    const ascii4 = buffer.subarray(0, 4).toString('ascii');
+    const ftyp = buffer.subarray(4, 8).toString('ascii');
+
+    switch (ext) {
+      case '.png':
+        return hex4 === '89504e47';
+      case '.jpg':
+      case '.jpeg':
+        return hex4.startsWith('ffd8ff');
+      case '.webp':
+        return ascii4 === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP';
+      case '.wav':
+        return ascii4 === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WAVE';
+      case '.ogg':
+        return ascii4 === 'OggS';
+      case '.webm':
+      case '.mkv':
+        return hex4 === '1a45dfa3';
+      case '.mp4':
+      case '.m4a':
+      case '.mov':
+        return ftyp === 'ftyp' || ftyp === 'moov' || ftyp === 'wide' || ftyp === 'mdat';
+      case '.mp3':
+      case '.aac':
+        return ascii4.startsWith('ID3') || (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0);
+      default:
+        return false;
+    }
+  }
+
+  async saveUploadedMedia({ category = 'video', originalName, base64Data, skipMagicCheck = false }) {
+    if (!Object.hasOwn(MEDIA_DIRS, category) || category === 'subtitles') {
       throw new Error(`Invalid media category: ${category}`);
     }
     if (!base64Data || typeof base64Data !== 'string') {
@@ -35,7 +72,7 @@ export class MediaStudioService {
     const ext = path.extname(safeName).toLowerCase();
 
     if (!ALLOWED_EXTENSIONS[category].has(ext)) {
-      throw new Error(`Unsupported ${category} file format "${ext}". Allowed: ${Array.from(ALLOWED_EXTENSIONS[category]).join(', ')}`);
+      throw new Error(`Unsupported ${category} format "${ext}". Allowed: ${Array.from(ALLOWED_EXTENSIONS[category]).join(', ')}`);
     }
 
     const cleanBase64 = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
@@ -46,11 +83,15 @@ export class MediaStudioService {
       throw new Error(`File exceeds maximum upload limit of ${this.config.MAX_UPLOAD_SIZE_MB}MB.`);
     }
 
+    if (!skipMagicCheck && !this._verifyMagicBytes(buffer, ext)) {
+      throw new Error(`Security rejection: File header (magic bytes) does not match a valid ${ext} media container.`);
+    }
+
     const finalFilename = `${Date.now()}_${safeName}`;
     const fullPath = path.join(MEDIA_DIRS[category], finalFilename);
-    fs.writeFileSync(fullPath, buffer, { mode: 0o600 });
+    await fs.promises.writeFile(fullPath, buffer, { mode: 0o600 });
 
-    logger.success('MediaStudio', `Uploaded ${category} asset: ${finalFilename} (${(buffer.length / 1024).toFixed(1)} KB)`);
+    logger.success('MediaStudio', `Uploaded verified ${category} asset: ${finalFilename} (${(buffer.length / 1024).toFixed(1)} KB)`);
     return {
       id: finalFilename,
       category,
@@ -62,8 +103,6 @@ export class MediaStudioService {
 
   listUploadedMedia() {
     crossOS.ensureDirectories(Object.values(MEDIA_DIRS));
-    const result = { videos: [], audio: [], overlays: [], subtitles: [] };
-
     const readDirSafe = (dirPath, category) => {
       if (!fs.existsSync(dirPath)) return [];
       return fs.readdirSync(dirPath)
@@ -81,19 +120,18 @@ export class MediaStudioService {
         .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
     };
 
-    result.videos = readDirSafe(MEDIA_DIRS.video, 'video');
-    result.audio = readDirSafe(MEDIA_DIRS.audio, 'audio');
-    result.overlays = readDirSafe(MEDIA_DIRS.overlay, 'overlay');
-    result.subtitles = readDirSafe(MEDIA_DIRS.subtitles, 'subtitles');
-    return result;
+    return {
+      videos: readDirSafe(MEDIA_DIRS.video, 'video'),
+      audio: readDirSafe(MEDIA_DIRS.audio, 'audio'),
+      overlays: readDirSafe(MEDIA_DIRS.overlay, 'overlay'),
+      subtitles: readDirSafe(MEDIA_DIRS.subtitles, 'subtitles')
+    };
   }
 
   resolveMediaFilePath(category, filename) {
-    if (!filename) return null;
-    const safeFile = path.basename(filename);
-    const targetDir = MEDIA_DIRS[category];
-    if (!targetDir) return null;
-    const fullPath = path.join(targetDir, safeFile);
+    if (!filename || !Object.hasOwn(MEDIA_DIRS, category)) return null;
+    const safeFile = path.basename(String(filename));
+    const fullPath = path.join(MEDIA_DIRS[category], safeFile);
     return fs.existsSync(fullPath) ? fullPath : null;
   }
 
@@ -107,76 +145,120 @@ export class MediaStudioService {
     return false;
   }
 
-  generateSrtAndChapters(scenes = [], projectTitle = 'video') {
+  // Enforces YouTube's official chapter rules: starts at 00:00, >=3 chapters, each >=10s, proper HH:MM:SS formatting (Fixes B17)
+  generateSrtAndChapters(scenes = [], projectTitle = 'video', { writeFile = true } = {}) {
     crossOS.ensureDirectories([MEDIA_DIRS.subtitles]);
     let currentSec = 0;
     const srtBlocks = [];
-    const chapters = [];
+    const rawTimeline = [];
 
     const formatSrtTime = (sec) => {
-      const hrs = String(Math.floor(sec / 3600)).padStart(2, '0');
-      const mins = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
-      const secs = String(Math.floor(sec % 60)).padStart(2, '0');
-      return `${hrs}:${mins}:${secs},000`;
+      const totalMs = Math.round(sec * 1000);
+      const hrs = String(Math.floor(totalMs / 3600000)).padStart(2, '0');
+      const mins = String(Math.floor((totalMs % 3600000) / 60000)).padStart(2, '0');
+      const secs = String(Math.floor((totalMs % 60000) / 1000)).padStart(2, '0');
+      const ms = String(totalMs % 1000).padStart(3, '0');
+      return `${hrs}:${mins}:${secs},${ms}`;
     };
 
     const formatChapterTime = (sec) => {
-      const mins = String(Math.floor(sec / 60)).padStart(2, '0');
-      const secs = String(Math.floor(sec % 60)).padStart(2, '0');
-      return `${mins}:${secs}`;
+      const whole = Math.floor(sec);
+      const hrs = Math.floor(whole / 3600);
+      const mins = String(Math.floor((whole % 3600) / 60)).padStart(2, '0');
+      const secs = String(whole % 60).padStart(2, '0');
+      return hrs > 0 ? `${hrs}:${mins}:${secs}` : `${mins}:${secs}`;
     };
 
     scenes.forEach((scene, index) => {
       const start = currentSec;
-      const duration = Number(scene.durationSec || 5);
+      const duration = Math.max(1, Number(scene.durationSec || 10));
       const end = start + duration;
+      const label = (scene.captionText || scene.type || `Section ${index + 1}`).replace(/\s+/g, ' ').trim();
 
       srtBlocks.push(
-        `${index + 1}\n${formatSrtTime(start)} --> ${formatSrtTime(end)}\n${scene.captionText || scene.type.toUpperCase()}\n`
+        `${index + 1}\n${formatSrtTime(start)} --> ${formatSrtTime(end)}\n${label}\n`
       );
-
-      chapters.push(`${formatChapterTime(start)} - ${scene.captionText ? scene.captionText.slice(0, 48) : scene.type.toUpperCase()}`);
+      rawTimeline.push({ start, duration, label: label.slice(0, 60) });
       currentSec = end;
     });
 
-    const srtContent = srtBlocks.join('\n');
-    const safeTitle = sanitizeSafeFilename(projectTitle).replace(/\.[^.]+$/, '');
-    const srtFilename = `${safeTitle}_${Date.now()}.srt`;
-    const srtPath = path.join(MEDIA_DIRS.subtitles, srtFilename);
+    // Merge short scenes so every YouTube chapter is >=10 seconds
+    const validChapters = [];
+    for (const item of rawTimeline) {
+      if (validChapters.length === 0) {
+        validChapters.push({ start: 0, duration: item.duration, label: item.label });
+      } else {
+        const prev = validChapters[validChapters.length - 1];
+        if (prev.duration < 10) {
+          prev.duration += item.duration;
+        } else {
+          validChapters.push({ start: item.start, duration: item.duration, label: item.label });
+        }
+      }
+    }
 
-    fs.writeFileSync(srtPath, srtContent, { encoding: 'utf-8', mode: 0o600 });
+    const chaptersLines = validChapters.map(ch => `${formatChapterTime(ch.start)} - ${ch.label}`);
+    const srtContent = srtBlocks.join('\n');
+    let srtFilename = null;
+    let srtPath = null;
+
+    if (writeFile) {
+      const safeTitle = sanitizeSafeFilename(`${projectTitle}.srt`).replace(/\.srt$/i, '');
+      srtFilename = `${safeTitle}_${Date.now()}.srt`;
+      srtPath = path.join(MEDIA_DIRS.subtitles, srtFilename);
+      fs.writeFileSync(srtPath, srtContent, { encoding: 'utf-8', mode: 0o600 });
+    }
+
     return {
       srtFilename,
       srtPath,
       srtContent,
-      chaptersText: chapters.join('\n')
+      chaptersText: chaptersLines.join('\n')
     };
   }
 
   async sendEnterpriseNotification(eventTitle, details = {}) {
-    try {
-      if (this.config.WEBHOOK_NOTIFY_URL && validateSafeExternalUrl(this.config.WEBHOOK_NOTIFY_URL)) {
-        await fetch(this.config.WEBHOOK_NOTIFY_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ event: eventTitle, timestamp: new Date().toISOString(), details })
-        });
+    const dispatchTask = async () => {
+      if (this.config.WEBHOOK_NOTIFY_URL) {
+        await assertSafeRemoteUrl(this.config.WEBHOOK_NOTIFY_URL);
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 8000);
+        try {
+          await fetch(this.config.WEBHOOK_NOTIFY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: ctrl.signal,
+            redirect: 'manual',
+            body: JSON.stringify({ event: eventTitle, timestamp: new Date().toISOString(), details })
+          });
+        } finally {
+          clearTimeout(t);
+        }
       }
 
       if (this.config.TELEGRAM_BOT_TOKEN && this.config.TELEGRAM_CHAT_ID) {
-        const tgUrl = `https://api.telegram.org/bot${encodeURIComponent(this.config.TELEGRAM_BOT_TOKEN)}/sendMessage`;
-        const text = `🚀 *NextGen YouTube Studio*\n*Event:* ${eventTitle}\n*Details:* ${JSON.stringify(details).slice(0, 300)}`;
-        await fetch(tgUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: this.config.TELEGRAM_CHAT_ID, text, parse_mode: 'Markdown' })
-        });
+        const tgUrl = `https://api.telegram.com/bot${encodeURIComponent(this.config.TELEGRAM_BOT_TOKEN)}/sendMessage`;
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 8000);
+        try {
+          const plainText = `NextGen YouTube Studio\nEvent: ${eventTitle}\nDetails: ${JSON.stringify(details).slice(0, 350)}`;
+          await fetch(tgUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: ctrl.signal,
+            body: JSON.stringify({ chat_id: this.config.TELEGRAM_CHAT_ID, text: plainText })
+          });
+        } finally {
+          clearTimeout(t);
+        }
       }
-    } catch (err) {
-      logger.warn('MediaStudio', `Notification dispatch skipped: ${err.message}`);
-    }
+    };
+
+    dispatchTask().catch(err => {
+      logger.warn('MediaStudio', `Background notification skipped: ${err.message}`);
+    });
   }
 }
 
 export const mediaStudio = new MediaStudioService();
-      
+        
