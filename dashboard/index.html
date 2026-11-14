@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NextGen YouTube Automation v2.0 — Autonomous Studio</title>
+  <title>NextGen YouTube Automation v3.0 — Enterprise Autonomous & Manual Studio</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -11,12 +11,13 @@
     <div class="brand">
       <span class="logo-dot"></span>
       <div>
-        <h1>NextGen YouTube Automation <span class="badge">v2.0</span></h1>
-        <p>Multi-Agent Engine • Browser MCP Hub • Claude-Style Code Video Editor</p>
+        <h1>NextGen YouTube Automation <span class="badge">v3.0 Enterprise</span></h1>
+        <p>Multi-Agent Engine • Universal AI Router • KineMaster-Style Manual & Code Video Studio</p>
       </div>
     </div>
     <div class="status-pills">
       <span id="aiStatusPill" class="pill">AI: Checking...</span>
+      <span id="tokenStatusPill" class="pill">Tokens: 0</span>
       <span id="ytStatusPill" class="pill">YouTube OAuth: Checking...</span>
     </div>
   </header>
@@ -28,11 +29,15 @@
         <strong id="metricVideos">0</strong>
       </div>
       <div class="card metric-card">
+        <span>Uploaded Media Assets</span>
+        <strong id="metricAssets">0</strong>
+      </div>
+      <div class="card metric-card">
         <span>Connected MCP Skills</span>
         <strong id="metricSkills">0</strong>
       </div>
       <div class="card metric-card">
-        <span>Compiled EDL Projects</span>
+        <span>Compiled Studio EDLs</span>
         <strong id="metricEdls">0</strong>
       </div>
       <div class="card metric-card">
@@ -45,7 +50,7 @@
       <!-- 1. Autonomous Production Pipeline -->
       <section class="card">
         <h2>🚀 1-Click Autonomous Video Production</h2>
-        <p class="muted">Runs Strategy, Scriptwriter, SEO, Thumbnail & Code Video Editor automatically.</p>
+        <p class="muted">Runs Strategy, Scriptwriter, Enterprise SEO (Chapters + A/B Test), Thumbnail & Studio Video Render.</p>
         <form id="productionForm" class="form-stack">
           <label>Target Niche
             <input type="text" id="nicheInput" value="Pan-India Direct Hiring & Tech Jobs" required />
@@ -69,10 +74,189 @@
         </form>
       </section>
 
-      <!-- 2. Browser MCP Skill Connector -->
+      <!-- 2. Universal Third-Party AI Provider Gateway -->
+      <section class="card">
+        <h2>🌐 Universal AI Provider & Failover Gateway</h2>
+        <p class="muted">Connect Gemini, OpenAI, Claude, OpenRouter, Groq, DeepSeek, Mistral, Together, or any Custom LLM API.</p>
+        <form id="universalAiForm" class="form-stack">
+          <div class="row">
+            <label>Active AI Provider
+              <select id="aiProviderSelect">
+                <option value="gemini">Google Gemini</option>
+                <option value="openrouter">OpenRouter (Universal Models)</option>
+                <option value="groq">Groq (Ultra-Fast LPU)</option>
+                <option value="deepseek">DeepSeek API</option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic Claude</option>
+                <option value="mistral">Mistral AI</option>
+                <option value="together">Together AI</option>
+                <option value="custom">Custom OpenAI-Compatible API</option>
+              </select>
+            </label>
+            <label>Model Name
+              <input type="text" id="aiModelInput" placeholder="e.g., gemini-2.5-flash or deepseek/deepseek-r1" />
+            </label>
+          </div>
+          <div class="row">
+            <label>Custom Base URL (Optional for Custom/Proxy)
+              <input type="text" id="aiBaseUrlInput" placeholder="https://openrouter.ai/api/v1/chat/completions" />
+            </label>
+            <label>API Key (Runtime Override)
+              <input type="password" id="aiApiKeyInput" placeholder="Paste API Key to activate immediately" />
+            </label>
+          </div>
+          <button type="submit" class="btn secondary">🔄 Save & Activate Universal AI Provider</button>
+        </form>
+      </section>
+    </div>
+
+    <!-- 3. KineMaster / PowerDirector Style Local Media Upload & Manual Multi-Track Studio -->
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <h2>🎛️ KineMaster / PowerDirector Manual Media & Layering Studio</h2>
+          <p class="muted">Upload raw video, voiceover, BGM, or green-screen overlays. Mute original video audio, remove background noise, auto-duck BGM, and apply studio filters.</p>
+        </div>
+        <button id="syncStudioToEdlBtn" class="btn outline">🔗 Sync Manual Controls to EDL Code Below</button>
+      </div>
+
+      <div class="main-grid">
+        <!-- Upload Box -->
+        <div class="form-stack">
+          <h3>📤 1. Upload Media File (Video / Voiceover / BGM / Overlay)</h3>
+          <div class="row">
+            <label>Media Category
+              <select id="uploadCategorySelect">
+                <option value="video">Raw Video (.mp4, .webm, .mov)</option>
+                <option value="audio">Voiceover / BGM Audio (.mp3, .wav, .m4a)</option>
+                <option value="overlay">PiP / Green Screen / Logo (.png, .jpg, .mp4)</option>
+              </select>
+            </label>
+            <label>Select File from Device
+              <input type="file" id="mediaFileInput" />
+            </label>
+          </div>
+          <button type="button" id="uploadMediaBtn" class="btn secondary">⬆️ Upload File to Studio Vault</button>
+          <div id="uploadedMediaList" class="list-box"></div>
+        </div>
+
+        <!-- Manual Mixing & Filter Controls -->
+        <div class="form-stack">
+          <h3>🎚️ 2. Multi-Track Audio, De-Noise & Visual Filter Controls</h3>
+          <div class="row">
+            <label>Source Video Track
+              <select id="studioVideoSelect"><option value="">-- Use AI Scene Canvas --</option></select>
+            </label>
+            <label>Voiceover Layer Track
+              <select id="studioVoiceSelect"><option value="">-- None --</option></select>
+            </label>
+          </div>
+          <div class="row">
+            <label>Background Music (BGM) Track
+              <select id="studioBgmSelect"><option value="">-- None --</option></select>
+            </label>
+            <label>PiP / Watermark / Green-Screen Overlay
+              <select id="studioOverlaySelect"><option value="">-- None --</option></select>
+            </label>
+          </div>
+
+          <div class="row">
+            <label class="checkbox-label">
+              <input type="checkbox" id="muteOrigAudioToggle" />
+              🔇 Mute Original Video Audio
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="denoiseToggle" checked />
+              🎙️ AI/DSP Noise Cancellation (De-Noise)
+            </label>
+          </div>
+          <div class="row">
+            <label class="checkbox-label">
+              <input type="checkbox" id="autoDuckToggle" checked />
+              📉 Auto-Duck BGM When Speaking
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="removeSilenceToggle" />
+              ✂️ Smart Silence Remover (Jump-Cut)
+            </label>
+          </div>
+          <div class="row">
+            <label class="checkbox-label">
+              <input type="checkbox" id="loudnormToggle" checked />
+              🔊 YouTube -14 LUFS Mastering
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="chromaKeyToggle" />
+              🟩 Chroma Key (Remove Green Screen)
+            </label>
+          </div>
+
+          <div class="row">
+            <label>Original Video Vol (<span id="origVolVal">1.0</span>x)
+              <input type="range" id="origVolSlider" min="0" max="2" step="0.1" value="1.0" />
+            </label>
+            <label>Voiceover Vol (<span id="voiceVolVal">1.2</span>x)
+              <input type="range" id="voiceVolSlider" min="0" max="3" step="0.1" value="1.2" />
+            </label>
+            <label>BGM Vol (<span id="bgmVolVal">0.25</span>x)
+              <input type="range" id="bgmVolSlider" min="0" max="1.5" step="0.05" value="0.25" />
+            </label>
+          </div>
+
+          <div class="row">
+            <label>Visual Filter Preset
+              <select id="visualFilterSelect">
+                <option value="none">None (Natural)</option>
+                <option value="cinematic">🎬 Cinematic Contrast</option>
+                <option value="warm">🌅 Warm Golden Glow</option>
+                <option value="cyberpunk">⚡ Cyberpunk Neon</option>
+                <option value="noir">🖤 Classic Noir (B&W)</option>
+                <option value="sharp">💎 Ultra Sharp HD</option>
+              </select>
+            </label>
+            <label>Playback Speed (<span id="speedVal">1.0</span>x)
+              <input type="range" id="speedSlider" min="0.5" max="2.0" step="0.1" value="1.0" />
+            </label>
+          </div>
+
+          <div class="row">
+            <label>Start Trim (Sec)
+              <input type="number" id="startTrimInput" min="0" value="0" />
+            </label>
+            <label>End Trim (Sec, 0 = Full)
+              <input type="number" id="endTrimInput" min="0" value="0" />
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Claude-Style Code-Driven Video Editor (EDL Studio) -->
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <h2>🎬 Claude-Style Code-Driven Video Editor (EDL Studio + Manual Layer Compiler)</h2>
+          <p class="muted">Edit scenes, captions, and manual studio parameters in declarative JSON or sync directly from the KineMaster controls above.</p>
+        </div>
+        <button id="loadSampleEdlBtn" class="btn outline">Load Sample EDL Code</button>
+      </div>
+      <div class="editor-grid">
+        <div>
+          <textarea id="edlCodeTextarea" rows="14" spellcheck="false"></textarea>
+          <button id="compileEdlBtn" class="btn primary full-width">🛠️ Compile Studio EDL, Subtitles (.SRT) & FFmpeg Render</button>
+        </div>
+        <div class="preview-pane">
+          <h3>Compiled FFmpeg Pipeline, Chapters & Scene Preview</h3>
+          <pre id="ffmpegOutputBox" class="code-box">Click "Compile Studio EDL" to generate multi-track FFmpeg render code & SRT subtitles...</pre>
+          <div id="sceneTimelinePreview" class="timeline-strip"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Browser MCP Hub, Produced Videos & Live Logs -->
+    <div class="main-grid">
       <section class="card">
         <h2>🔌 Browser MCP Skill Hub</h2>
-        <p class="muted">Connect external or internal Model Context Protocol skills directly from your browser.</p>
         <form id="mcpForm" class="form-stack">
           <div class="row">
             <input type="text" id="mcpId" placeholder="Skill ID (e.g. mcp-capcut-bridge)" required />
@@ -92,46 +276,21 @@
         </form>
         <div id="mcpSkillsList" class="list-box"></div>
       </section>
-    </div>
 
-    <!-- 3. Claude-Style Code-Driven Video Editor -->
-    <section class="card">
-      <div class="section-head">
-        <div>
-          <h2>🎬 Claude-Style Code-Driven Video Editor (EDL Studio)</h2>
-          <p class="muted">Edit videos via clean declarative JSON code—stitch scenes, set exact timestamps, colors & captions without timeline lag.</p>
-        </div>
-        <button id="loadSampleEdlBtn" class="btn outline">Load Sample EDL Code</button>
-      </div>
-      <div class="editor-grid">
-        <div>
-          <textarea id="edlCodeTextarea" rows="12" spellcheck="false"></textarea>
-          <button id="compileEdlBtn" class="btn primary full-width">🛠️ Compile EDL & Generate FFmpeg Render</button>
-        </div>
-        <div class="preview-pane">
-          <h3>Compiled FFmpeg Pipeline & Scene Preview</h3>
-          <pre id="ffmpegOutputBox" class="code-box">Click "Compile EDL" to generate zero-bug FFmpeg render code...</pre>
-          <div id="sceneTimelinePreview" class="timeline-strip"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 4. Recent Video Jobs & Live Logs -->
-    <div class="main-grid">
       <section class="card">
-        <h2>📦 Produced Video Packages</h2>
+        <h2>📦 Produced Video Packages & A/B CTR Winners</h2>
         <div id="videoJobsList" class="list-box"></div>
       </section>
-
-      <section class="card">
-        <h2>📡 Real-Time Agent Telemetry Logs</h2>
-        <div id="liveLogsBox" class="logs-box"></div>
-      </section>
     </div>
+
+    <section class="card">
+      <h2>📡 Real-Time Agent & Studio Telemetry Logs</h2>
+      <div id="liveLogsBox" class="logs-box"></div>
+    </section>
   </main>
 
   <script src="app.js" type="module"></script>
   <script src="enhance.js" type="module"></script>
 </body>
   </html>
-  
+                                                                                     
