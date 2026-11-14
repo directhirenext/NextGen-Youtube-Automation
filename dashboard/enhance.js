@@ -1,4 +1,4 @@
-import { refreshDashboard } from './app.js';
+import { apiCall, refreshDashboard } from './app.js';
 
 const sampleEdl = {
   title: 'Pan-India Direct Hiring Walk-In Drive 2026',
@@ -28,7 +28,7 @@ const sampleEdl = {
     {
       sceneId: 'scene_hook',
       type: 'hook',
-      durationSec: 4,
+      durationSec: 10,
       captionText: '5 Verified Companies Hiring Freshers Direct Walk-In!',
       bgColor: '#0f172a',
       textColor: '#38bdf8',
@@ -37,7 +37,7 @@ const sampleEdl = {
     {
       sceneId: 'scene_details',
       type: 'body',
-      durationSec: 8,
+      durationSec: 12,
       captionText: 'Noida, Gurugram, Bengaluru & Remote Roles - Salary 4.5 to 9 LPA',
       bgColor: '#1e1b4b',
       textColor: '#facc15',
@@ -46,7 +46,7 @@ const sampleEdl = {
     {
       sceneId: 'scene_cta',
       type: 'cta',
-      durationSec: 4,
+      durationSec: 10,
       captionText: 'Apply Link in Description • Subscribe for Daily Alerts!',
       bgColor: '#090d16',
       textColor: '#4ade80',
@@ -149,13 +149,10 @@ document.getElementById('compileEdlBtn')?.addEventListener('click', async () => 
     edlTextarea.value = JSON.stringify(parsedEdl, null, 2);
     renderTimelinePreview(parsedEdl);
 
-    const res = await fetch('/api/editor/compile', {
+    const data = await apiCall('/api/editor/compile', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(parsedEdl)
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Compilation failed');
 
     ffmpegBox.textContent =
       `[FFmpeg Multi-Track Command]:\n${data.compiled.ffmpegCommandPreview}\n\n` +
@@ -170,3 +167,4 @@ document.getElementById('compileEdlBtn')?.addEventListener('click', async () => 
 });
 
 loadSample();
+      
